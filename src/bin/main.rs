@@ -7,6 +7,7 @@ use lang::token::Token;
 fn main() {
     let mut rl = Editor::<()>::new();
     println!("Hello! Toy language!");
+    println!("Author: hadxu");
     loop {
         match rl.readline(">> ") {
             Ok(line) => {
