@@ -6,7 +6,6 @@ pub struct Parser<'a> {
     lexer: Lexer<'a>,
     current_token: Token,
     next_token: Token,
-    // errors: ParseErrors,
 }
 
 impl<'a> Parser<'a> {
@@ -39,8 +38,7 @@ impl<'a> Parser<'a> {
             self.next_token();
             return true;
         } else {
-            
-            return false;
+            panic!("expected next token to be {:?}, got {:?} instead", tok, self.next_token);
         }
     }
 
@@ -66,7 +64,7 @@ impl<'a> Parser<'a> {
     fn parse_let_stmt(&mut self) -> Option<Stmt> {
         match &self.next_token {
             Token::IDENT(_) => self.next_token(),
-            _ => return None,
+            _ => panic!("expected next token to be IDENT, got {:?} instead", self.next_token)
         }
 
         let name = match self.parse_ident() {
@@ -121,8 +119,6 @@ impl<'a> Parser<'a> {
             _ => None,
         }
     }
-
-
 }
 
 #[cfg(test)]
@@ -140,6 +136,8 @@ mod tests {
         "#;
         let mut parser = Parser::new(Lexer::new(input));
         let program = parser.parse();
+
+        print!("{:?}", program);
 
         assert_eq!(
             vec![
