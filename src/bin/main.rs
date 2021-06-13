@@ -2,10 +2,13 @@ use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
 use lang::lexer::Lexer;
-use lang::token::Token;
+use lang::parser::Parser;
+use lang::evaluator::Evaluator;
 
 fn main() {
     let mut rl = Editor::<()>::new();
+    let mut evaluator = Evaluator::new();
+
     println!("Hello! Toy language!");
     println!("Author: hadxu");
     loop {
@@ -13,15 +16,22 @@ fn main() {
             Ok(line) => {
                 rl.add_history_entry(&line);
                 // println!("{}", line);
-                let mut lexer = Lexer::new(&line);
-                loop {
-                    let tok = lexer.next_token();
-                    if tok != Token::EOF {
-                        println!("{:?}", tok);
-                    } else {
-                        break;
-                    }
+                let lexer = Lexer::new(&line);
+                let mut parser = Parser::new(lexer);
+                let program = parser.parse();
+                
+                if let Some(evaluated) = evaluator.eval(program) {
+                    println!("{}", evaluated);
                 }
+                
+                // loop {
+                //     let tok = lexer.next_token();
+                //     if tok != Token::EOF {
+                //         println!("{:?}", tok);
+                //     } else {
+                //         break;
+                //     }
+                // }
             }
             Err(ReadlineError::Interrupted) => {
                 println!("\nBye :)");
