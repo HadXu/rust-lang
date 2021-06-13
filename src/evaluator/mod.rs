@@ -1,13 +1,12 @@
 pub mod object;
-use crate::evaluator::object::*;
 use crate::ast::*;
+use crate::evaluator::object::*;
 
 pub struct Evaluator;
 
-
 impl Evaluator {
     pub fn new() -> Self {
-        Evaluator{}
+        Evaluator {}
     }
 
     pub fn eval(&mut self, program: Program) -> Option<Object> {
@@ -37,7 +36,7 @@ impl Evaluator {
                 } else {
                     None
                 }
-            },
+            }
 
             Expr::Infix(infix, left_expr, right_expr) => {
                 let left = self.eval_expr(*left_expr);
@@ -47,8 +46,8 @@ impl Evaluator {
                 } else {
                     None
                 }
-            },
-            _=> panic!("error"),
+            }
+            _ => panic!("error"),
         }
     }
 
@@ -60,7 +59,9 @@ impl Evaluator {
 
     fn eval_infix_expr(&mut self, infix: Infix, left: Object, right: Object) -> Object {
         match (left, right) {
-            (Object::Int(left_value), Object::Int(right_value)) => self.eval_infix_int_expr(infix, left_value, right_value),
+            (Object::Int(left_value), Object::Int(right_value)) => {
+                self.eval_infix_int_expr(infix, left_value, right_value)
+            }
         }
     }
 
@@ -71,7 +72,7 @@ impl Evaluator {
     }
 
     fn eval_infix_int_expr(&mut self, infix: Infix, left: i64, right: i64) -> Object {
-        match infix { 
+        match infix {
             Infix::PLUS => Object::Int(left + right),
             Infix::MINUS => Object::Int(left - right),
             Infix::MULTIPLY => Object::Int(left * right),
@@ -88,17 +89,15 @@ impl Evaluator {
             _ => panic!("not support this op {:?}", prefix),
         }
     }
-
 }
-
 
 #[cfg(test)]
 mod tests {
     use crate::ast::*;
-    use crate::lexer::Lexer;
-    use crate::parser::Parser;
     use crate::evaluator::object::*;
     use crate::evaluator::Evaluator;
+    use crate::lexer::Lexer;
+    use crate::parser::Parser;
 
     fn eval(input: &str) -> Option<Object> {
         Evaluator::new().eval(Parser::new(Lexer::new(input)).parse())
@@ -119,7 +118,8 @@ mod tests {
             ("20 + 2 * -10", Some(Object::Int(0))),
             ("50 / 2 * 2 + 10", Some(Object::Int(60))),
             ("3 * 3 * 3 + 10", Some(Object::Int(37))),
-            ];
+            ("(5 + 10 * 2 + 15 / 3) * 2 + -10", Some(Object::Int(50))),
+        ];
         for (input, expect) in tests {
             assert_eq!(expect, eval(input));
         }
