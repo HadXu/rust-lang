@@ -30,6 +30,15 @@ impl Evaluator {
     fn eval_expr(&mut self, expr: Expr) -> Option<Object> {
         match expr {
             Expr::Literal(literal) => Some(self.eval_literal(literal)),
+            Expr::Prefix(prefix, right_expr) => {
+                let right = self.eval_expr(*right_expr);
+                if right.is_some() {
+                    Some(self.eval_prefix_expr(prefix, right.unwrap()))
+                } else {
+                    None
+                }
+            },
+
             Expr::Infix(infix, left_expr, right_expr) => {
                 let left = self.eval_expr(*left_expr);
                 let right = self.eval_expr(*right_expr);
@@ -55,13 +64,30 @@ impl Evaluator {
         }
     }
 
+    fn eval_prefix_expr(&mut self, prefix: Prefix, right: Object) -> Object {
+        match right {
+            Object::Int(right_value) => self.eval_prefix_int_expr(prefix, right_value),
+        }
+    }
+
     fn eval_infix_int_expr(&mut self, infix: Infix, left: i64, right: i64) -> Object {
         match infix { 
             Infix::PLUS => Object::Int(left + right),
+            Infix::MINUS => Object::Int(left - right),
+            Infix::MULTIPLY => Object::Int(left * right),
+            Infix::DIVIDE => Object::Int(left / right),
             _ => panic!("not support other op"),
         }
     }
 
+    fn eval_prefix_int_expr(&mut self, prefix: Prefix, right: i64) -> Object {
+        match prefix {
+            Prefix::MINUS => Object::Int(-right),
+            Prefix::PLUS => Object::Int(right),
+            Prefix::NOT => Object::Int(!right),
+            _ => panic!("not support this op {:?}", prefix),
+        }
+    }
 
 }
 
@@ -82,7 +108,17 @@ mod tests {
     fn test_int_expr() {
         let tests = vec![
             ("5", Some(Object::Int(5))),
-            ("5 + 5", Some(Object::Int(10)))
+            ("-5", Some(Object::Int(-5))),
+            ("-10", Some(Object::Int(-10))),
+            ("5 + 5", Some(Object::Int(10))),
+            ("5 + 5 + 5 + 5 - 10", Some(Object::Int(10))),
+            ("2 * 2 * 2 * 2 * 2", Some(Object::Int(32))),
+            ("-50 + 100 + -50", Some(Object::Int(0))),
+            ("5 * 2 + 10", Some(Object::Int(20))),
+            ("5 + 2 * 10", Some(Object::Int(25))),
+            ("20 + 2 * -10", Some(Object::Int(0))),
+            ("50 / 2 * 2 + 10", Some(Object::Int(60))),
+            ("3 * 3 * 3 + 10", Some(Object::Int(37))),
             ];
         for (input, expect) in tests {
             assert_eq!(expect, eval(input));

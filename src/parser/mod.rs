@@ -141,6 +141,7 @@ impl<'a> Parser<'a> {
         let mut left = match self.current_token {
             Token::IDENT(_) => self.parse_ident_expr(),
             Token::INT(_) => self.parse_int_expr(),
+            Token::BANG | Token::MINUS | Token::PLUS => self.parse_prefix_expr(),
             _ => panic!("do not support {:?} token", self.current_token),
         };
 
@@ -181,6 +182,21 @@ impl<'a> Parser<'a> {
         match self.current_token {
             Token::INT(v) => Some(Expr::Literal(Literal::Int(v.clone()))),
             _ => None,
+        }
+    }
+
+    fn parse_prefix_expr(&mut self) -> Option<Expr> {
+        let prefix = match self.current_token {
+            Token::BANG => Prefix::NOT,
+            Token::MINUS => Prefix::MINUS,
+            Token::PLUS => Prefix::PLUS,
+            _ => panic!("not support prefix op"),
+        };
+
+        self.next_token();
+        match self.parse_expr(Precedence::PREFIX) {
+            Some(expr) => Some(Expr::Prefix(prefix, Box::new(expr))),
+            None => None,
         }
     }
 
@@ -357,4 +373,37 @@ return 993322;
         }
     }
 
+    #[test]
+    fn test_prefix_expr() {
+        let tests = vec![
+            (
+                "!5;",
+                Stmt::Expr(Expr::Prefix(
+                    Prefix::NOT,
+                    Box::new(Expr::Literal(Literal::Int(5))),
+                )),
+            ),
+            (
+                "-15;",
+                Stmt::Expr(Expr::Prefix(
+                    Prefix::MINUS,
+                    Box::new(Expr::Literal(Literal::Int(15))),
+                )),
+            ),
+            (
+                "+15;",
+                Stmt::Expr(Expr::Prefix(
+                    Prefix::PLUS,
+                    Box::new(Expr::Literal(Literal::Int(15))),
+                )),
+            ),
+        ];
+
+        for (input, expect) in tests {
+            let mut parser = Parser::new(Lexer::new(input));
+            let program = parser.parse();
+
+            assert_eq!(vec![expect], program);
+        }
+    }
 }

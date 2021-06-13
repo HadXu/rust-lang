@@ -5,6 +5,7 @@ pub struct Ident(pub String);
 pub enum Expr {
     Ident(Ident),
     Literal(Literal),
+    Prefix(Prefix, Box<Expr>),
     Infix(Infix, Box<Expr>, Box<Expr>),
 }
 
