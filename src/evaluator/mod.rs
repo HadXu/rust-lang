@@ -9,6 +9,13 @@ impl Evaluator {
         Evaluator {}
     }
 
+    fn is_truthy(obj: Object) -> bool {
+        match obj {
+            Object::NULL | Object::Bool(false) => false,
+            _ => true,
+        }
+    }
+
     pub fn eval(&mut self, program: Program) -> Option<Object> {
         let mut result = None;
         for stmt in program {
@@ -47,7 +54,12 @@ impl Evaluator {
                     None
                 }
             }
-            _ => panic!("error"),
+            Expr::If {
+                cond,
+                consequence,
+                alternative,
+            } => self.eval_if_expr(*cond, consequence, alternative),
+            _ => panic!("not support op {:?}", expr),
         }
     }
 
@@ -62,7 +74,7 @@ impl Evaluator {
         match (left, right) {
             (Object::Int(left_value), Object::Int(right_value)) => {
                 self.eval_infix_int_expr(infix, left_value, right_value)
-            },
+            }
             (_, _) => panic!("not support"),
         }
     }
@@ -88,7 +100,7 @@ impl Evaluator {
         }
     }
 
-    fn eval_not_op_expr(&mut self,  right: Object) -> Object {
+    fn eval_not_op_expr(&mut self, right: Object) -> Object {
         match right {
             Object::Bool(true) => Object::Bool(false),
             Object::Bool(false) => Object::Bool(true),
@@ -97,7 +109,7 @@ impl Evaluator {
         }
     }
 
-    fn eval_minus_prefix_op_expr(&mut self,  right: Object) -> Object {
+    fn eval_minus_prefix_op_expr(&mut self, right: Object) -> Object {
         match right {
             Object::Int(value) => Object::Int(-value),
             _ => panic!("unknown operator: -{}", right),
@@ -108,6 +120,35 @@ impl Evaluator {
         match right {
             Object::Int(value) => Object::Int(value),
             _ => panic!("unknown operator: -{}", right),
+        }
+    }
+
+    fn eval_block_stmt(&mut self, stmts: BlockStmt) -> Option<Object> {
+        let mut result = None;
+        for stmt in stmts {
+            match self.eval_stmt(stmt) {
+                obj => result = obj,
+            }
+        }
+        result
+    }
+
+    fn eval_if_expr(
+        &mut self,
+        cond: Expr,
+        consequence: BlockStmt,
+        alternative: Option<BlockStmt>,
+    ) -> Option<Object> {
+        let cond = match self.eval_expr(cond) {
+            Some(cond) => cond,
+            None => return None,
+        };
+        if Self::is_truthy(cond) {
+            self.eval_block_stmt(consequence)
+        } else if let Some(alt) = alternative {
+            self.eval_block_stmt(alt)
+        } else {
+            None
         }
     }
 }
@@ -124,7 +165,6 @@ mod tests {
     }
 
     #[test]
-
     #[test]
     fn test_not_operator() {
         let tests = vec![
@@ -180,6 +220,23 @@ mod tests {
             ("1 != 1", Some(Object::Bool(false))),
             ("1 == 2", Some(Object::Bool(false))),
             ("1 != 2", Some(Object::Bool(true))),
+        ];
+
+        for (input, expect) in tests {
+            assert_eq!(expect, eval(input));
+        }
+    }
+
+    #[test]
+    fn test_if_else_expr() {
+        let tests = vec![
+            ("if (true) { 10 }", Some(Object::Int(10))),
+            ("if (false) { 10 }", None),
+            ("if (1) { 10 }", Some(Object::Int(10))),
+            ("if (1 < 2) { 10 }", Some(Object::Int(10))),
+            ("if (1 > 2) { 10 }", None),
+            ("if (1 > 2) { 10 } else { 20 }", Some(Object::Int(20))),
+            ("if (1 < 2) { 10 } else { 20 }", Some(Object::Int(10))),
         ];
 
         for (input, expect) in tests {

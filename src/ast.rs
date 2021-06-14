@@ -7,6 +7,11 @@ pub enum Expr {
     Literal(Literal),
     Prefix(Prefix, Box<Expr>),
     Infix(Infix, Box<Expr>, Box<Expr>),
+    If {
+        cond: Box<Expr>,
+        consequence: BlockStmt,
+        alternative: Option<BlockStmt>,
+    },
 }
 
 #[derive(PartialEq, Clone, Debug)]

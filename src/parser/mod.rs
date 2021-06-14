@@ -144,6 +144,7 @@ impl<'a> Parser<'a> {
             Token::BANG | Token::MINUS | Token::PLUS => self.parse_prefix_expr(),
             Token::LPAREN => self.parse_grouped_expr(),
             Token::BOOL(_) => self.parse_bool_expr(),
+            Token::IF => self.parse_if_expr(),
             _ => panic!("do not support {:?} token", self.current_token),
         };
 
@@ -223,12 +224,12 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_grouped_expr(&mut self) -> Option<Expr>  {
+    fn parse_grouped_expr(&mut self) -> Option<Expr> {
         self.next_token();
         let expr = self.parse_expr(Precedence::LOWEST);
         if !self.expect_next_token(Token::RPAREN) {
             panic!("error");
-        }else {
+        } else {
             expr
         }
     }
@@ -238,6 +239,56 @@ impl<'a> Parser<'a> {
             Token::BOOL(value) => Some(Expr::Literal(Literal::Bool(value == true))),
             _ => None,
         }
+    }
+
+    fn parse_if_expr(&mut self) -> Option<Expr> {
+        if !self.expect_next_token(Token::LPAREN) {
+            panic!(
+                "execpt next token {:?} got {:?}",
+                Token::LPAREN,
+                self.next_token
+            );
+        }
+        self.next_token();
+        let cond = match self.parse_expr(Precedence::LOWEST) {
+            Some(expr) => expr,
+            None => return None,
+        };
+        if !self.expect_next_token(Token::RPAREN) || !self.expect_next_token(Token::LBRACE) {
+            return None;
+        }
+        let consequence = self.parse_block_stmt();
+        let mut alternative = None;
+
+        if self.next_token_is(&Token::ELSE) {
+            self.next_token();
+
+            if !self.expect_next_token(Token::LBRACE) {
+                return None;
+            }
+
+            alternative = Some(self.parse_block_stmt());
+        }
+        Some(Expr::If {
+            cond: Box::new(cond),
+            consequence,
+            alternative,
+        })
+    }
+
+    fn parse_block_stmt(&mut self) -> BlockStmt {
+        self.next_token();
+
+        let mut block = vec![];
+
+        while !self.current_token_is(Token::RBRACE) && !self.current_token_is(Token::EOF) {
+            match self.parse_stmt() {
+                Some(stmt) => block.push(stmt),
+                None => {}
+            }
+            self.next_token();
+        }
+        block
     }
 }
 
@@ -424,6 +475,48 @@ return 993322;
 
             assert_eq!(vec![expect], program);
         }
+    }
+
+    #[test]
+    fn test_if_expr() {
+        let input = "if (x < y) { x }";
+
+        let mut parser = Parser::new(Lexer::new(input));
+        let program = parser.parse();
+
+        assert_eq!(
+            vec![Stmt::Expr(Expr::If {
+                cond: Box::new(Expr::Infix(
+                    Infix::LESSTHAN,
+                    Box::new(Expr::Ident(Ident(String::from("x")))),
+                    Box::new(Expr::Ident(Ident(String::from("y")))),
+                )),
+                consequence: vec![Stmt::Expr(Expr::Ident(Ident(String::from("x"))))],
+                alternative: None,
+            })],
+            program,
+        );
+    }
+
+    #[test]
+    fn test_if_else_expr() {
+        let input = "if (x < y) { x } else { y }";
+
+        let mut parser = Parser::new(Lexer::new(input));
+        let program = parser.parse();
+
+        assert_eq!(
+            vec![Stmt::Expr(Expr::If {
+                cond: Box::new(Expr::Infix(
+                    Infix::LESSTHAN,
+                    Box::new(Expr::Ident(Ident(String::from("x")))),
+                    Box::new(Expr::Ident(Ident(String::from("y")))),
+                )),
+                consequence: vec![Stmt::Expr(Expr::Ident(Ident(String::from("x"))))],
+                alternative: Some(vec![Stmt::Expr(Expr::Ident(Ident(String::from("y"))))]),
+            })],
+            program,
+        );
     }
 
     #[test]
@@ -676,7 +769,6 @@ return 993322;
                     )),
                 )),
             ),
-
         ];
 
         for (input, expect) in tests {
@@ -685,6 +777,4 @@ return 993322;
             assert_eq!(vec![expect], program);
         }
     }
-
-    
 }
