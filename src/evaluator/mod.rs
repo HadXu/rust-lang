@@ -68,9 +68,10 @@ impl Evaluator {
     }
 
     fn eval_prefix_expr(&mut self, prefix: Prefix, right: Object) -> Object {
-        match right {
-            Object::Int(right_value) => self.eval_prefix_int_expr(prefix, right_value),
-            Object::Bool(right_value) => self.eval_prefix_bool_expr(prefix, right_value),
+        match prefix {
+            Prefix::NOT => self.eval_not_op_expr(right),
+            Prefix::MINUS => self.eval_minus_prefix_op_expr(right),
+            Prefix::PLUS => self.eval_plus_prefix_op_expr(right),
         }
     }
 
@@ -87,18 +88,26 @@ impl Evaluator {
         }
     }
 
-    fn eval_prefix_int_expr(&mut self, prefix: Prefix, right: i64) -> Object {
-        match prefix {
-            Prefix::MINUS => Object::Int(-right),
-            Prefix::PLUS => Object::Int(right),
-            Prefix::NOT => Object::Int(!right),
+    fn eval_not_op_expr(&mut self,  right: Object) -> Object {
+        match right {
+            Object::Bool(true) => Object::Bool(false),
+            Object::Bool(false) => Object::Bool(true),
+            Object::NULL => Object::Bool(true),
+            _ => Object::Bool(false),
         }
     }
 
-    fn eval_prefix_bool_expr(&mut self, prefix: Prefix, right: bool) -> Object {
-        match prefix {
-            Prefix::NOT => Object::Bool(!right),
-            _ => panic!("not support this op {:?}", prefix),
+    fn eval_minus_prefix_op_expr(&mut self,  right: Object) -> Object {
+        match right {
+            Object::Int(value) => Object::Int(-value),
+            _ => panic!("unknown operator: -{}", right),
+        }
+    }
+
+    fn eval_plus_prefix_op_expr(&mut self, right: Object) -> Object {
+        match right {
+            Object::Int(value) => Object::Int(value),
+            _ => panic!("unknown operator: -{}", right),
         }
     }
 }
@@ -114,6 +123,22 @@ mod tests {
         Evaluator::new().eval(Parser::new(Lexer::new(input)).parse())
     }
 
+    #[test]
+
+    #[test]
+    fn test_not_operator() {
+        let tests = vec![
+            ("!true", Some(Object::Bool(false))),
+            ("!false", Some(Object::Bool(true))),
+            ("!!true", Some(Object::Bool(true))),
+            ("!!false", Some(Object::Bool(false))),
+            ("!!5", Some(Object::Bool(true))),
+        ];
+
+        for (input, expect) in tests {
+            assert_eq!(expect, eval(input));
+        }
+    }
     #[test]
     fn test_int_expr() {
         let tests = vec![

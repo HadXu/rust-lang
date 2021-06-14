@@ -640,6 +640,43 @@ return 993322;
                 )),
             ),
             ("true", Stmt::Expr(Expr::Literal(Literal::Bool(true)))),
+            ("false", Stmt::Expr(Expr::Literal(Literal::Bool(false)))),
+            (
+                "3 > 5 == false",
+                Stmt::Expr(Expr::Infix(
+                    Infix::EQUAL,
+                    Box::new(Expr::Infix(
+                        Infix::GREATERTHAN,
+                        Box::new(Expr::Literal(Literal::Int(3))),
+                        Box::new(Expr::Literal(Literal::Int(5))),
+                    )),
+                    Box::new(Expr::Literal(Literal::Bool(false))),
+                )),
+            ),
+            (
+                "3 < 5 == true",
+                Stmt::Expr(Expr::Infix(
+                    Infix::EQUAL,
+                    Box::new(Expr::Infix(
+                        Infix::LESSTHAN,
+                        Box::new(Expr::Literal(Literal::Int(3))),
+                        Box::new(Expr::Literal(Literal::Int(5))),
+                    )),
+                    Box::new(Expr::Literal(Literal::Bool(true))),
+                )),
+            ),
+            (
+                "!(true == true)",
+                Stmt::Expr(Expr::Prefix(
+                    Prefix::NOT,
+                    Box::new(Expr::Infix(
+                        Infix::EQUAL,
+                        Box::new(Expr::Literal(Literal::Bool(true))),
+                        Box::new(Expr::Literal(Literal::Bool(true))),
+                    )),
+                )),
+            ),
+
         ];
 
         for (input, expect) in tests {
@@ -648,4 +685,6 @@ return 993322;
             assert_eq!(vec![expect], program);
         }
     }
+
+    
 }
