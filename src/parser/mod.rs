@@ -143,6 +143,7 @@ impl<'a> Parser<'a> {
             Token::INT(_) => self.parse_int_expr(),
             Token::BANG | Token::MINUS | Token::PLUS => self.parse_prefix_expr(),
             Token::LPAREN => self.parse_grouped_expr(),
+            Token::BOOL(_) => self.parse_bool_expr(),
             _ => panic!("do not support {:?} token", self.current_token),
         };
 
@@ -229,6 +230,13 @@ impl<'a> Parser<'a> {
             panic!("error");
         }else {
             expr
+        }
+    }
+
+    fn parse_bool_expr(&mut self) -> Option<Expr> {
+        match self.current_token {
+            Token::BOOL(value) => Some(Expr::Literal(Literal::Bool(value == true))),
+            _ => None,
         }
     }
 }
@@ -561,6 +569,77 @@ return 993322;
                     )),
                 )),
             ),
+            (
+                "!-a",
+                Stmt::Expr(Expr::Prefix(
+                    Prefix::NOT,
+                    Box::new(Expr::Prefix(
+                        Prefix::MINUS,
+                        Box::new(Expr::Ident(Ident(String::from("a")))),
+                    )),
+                )),
+            ),
+            (
+                "5 > 4 == 3 < 4",
+                Stmt::Expr(Expr::Infix(
+                    Infix::EQUAL,
+                    Box::new(Expr::Infix(
+                        Infix::GREATERTHAN,
+                        Box::new(Expr::Literal(Literal::Int(5))),
+                        Box::new(Expr::Literal(Literal::Int(4))),
+                    )),
+                    Box::new(Expr::Infix(
+                        Infix::LESSTHAN,
+                        Box::new(Expr::Literal(Literal::Int(3))),
+                        Box::new(Expr::Literal(Literal::Int(4))),
+                    )),
+                )),
+            ),
+            (
+                "5 < 4 != 3 > 4",
+                Stmt::Expr(Expr::Infix(
+                    Infix::NOTEQUAL,
+                    Box::new(Expr::Infix(
+                        Infix::LESSTHAN,
+                        Box::new(Expr::Literal(Literal::Int(5))),
+                        Box::new(Expr::Literal(Literal::Int(4))),
+                    )),
+                    Box::new(Expr::Infix(
+                        Infix::GREATERTHAN,
+                        Box::new(Expr::Literal(Literal::Int(3))),
+                        Box::new(Expr::Literal(Literal::Int(4))),
+                    )),
+                )),
+            ),
+            (
+                "3 + 4 * 5 == 3 * 1 + 4 * 5",
+                Stmt::Expr(Expr::Infix(
+                    Infix::EQUAL,
+                    Box::new(Expr::Infix(
+                        Infix::PLUS,
+                        Box::new(Expr::Literal(Literal::Int(3))),
+                        Box::new(Expr::Infix(
+                            Infix::MULTIPLY,
+                            Box::new(Expr::Literal(Literal::Int(4))),
+                            Box::new(Expr::Literal(Literal::Int(5))),
+                        )),
+                    )),
+                    Box::new(Expr::Infix(
+                        Infix::PLUS,
+                        Box::new(Expr::Infix(
+                            Infix::MULTIPLY,
+                            Box::new(Expr::Literal(Literal::Int(3))),
+                            Box::new(Expr::Literal(Literal::Int(1))),
+                        )),
+                        Box::new(Expr::Infix(
+                            Infix::MULTIPLY,
+                            Box::new(Expr::Literal(Literal::Int(4))),
+                            Box::new(Expr::Literal(Literal::Int(5))),
+                        )),
+                    )),
+                )),
+            ),
+            ("true", Stmt::Expr(Expr::Literal(Literal::Bool(true)))),
         ];
 
         for (input, expect) in tests {

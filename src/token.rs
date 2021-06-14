@@ -5,6 +5,7 @@ pub enum Token {
 
     IDENT(String),
     INT(i64),
+    BOOL(bool),
 
     ASSIGN,
     PLUS,
@@ -26,8 +27,6 @@ pub enum Token {
 
     FUNCTION,
     LET,
-    TRUE,
-    FALSE,
     IF,
     ELSE,
     RETURN,

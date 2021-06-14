@@ -12,6 +12,7 @@ pub enum Expr {
 #[derive(PartialEq, Clone, Debug)]
 pub enum Literal {
     Int(i64),
+    Bool(bool),
 }
 
 #[derive(PartialEq, Clone, Debug)]
