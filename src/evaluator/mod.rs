@@ -9,6 +9,13 @@ impl Evaluator {
         Evaluator {}
     }
 
+    fn is_error(obj: &Object) -> bool {
+        match obj {
+            Object::Error(_) => true,
+            _ => false,
+        }
+    }
+
     fn is_truthy(obj: Object) -> bool {
         match obj {
             Object::NULL | Object::Bool(false) => false,
@@ -20,6 +27,8 @@ impl Evaluator {
         let mut result = None;
         for stmt in program {
             match self.eval_stmt(stmt) {
+                Some(Object::ReturnValue(value)) => return Some(*value),
+                Some(Object::Error(msg)) => return Some(Object::Error(msg)),
                 obj => result = obj,
             }
         }
@@ -29,7 +38,18 @@ impl Evaluator {
     fn eval_stmt(&mut self, stmt: Stmt) -> Option<Object> {
         match stmt {
             Stmt::Expr(expr) => self.eval_expr(expr),
-            _ => None,
+            Stmt::Return(expr) => {
+                let value = match self.eval_expr(expr) {
+                    Some(value) => value,
+                    None => return None,
+                };
+                if Self::is_error(&value) {
+                    Some(value)
+                } else {
+                    Some(Object::ReturnValue(Box::new(value)))
+                }
+            }
+            _ => panic!("not support {:?}", stmt),
         }
     }
 
@@ -119,7 +139,7 @@ impl Evaluator {
     fn eval_plus_prefix_op_expr(&mut self, right: Object) -> Object {
         match right {
             Object::Int(value) => Object::Int(value),
-            _ => panic!("unknown operator: -{}", right),
+            _ => panic!("unknown operator: +{}", right),
         }
     }
 
@@ -127,6 +147,8 @@ impl Evaluator {
         let mut result = None;
         for stmt in stmts {
             match self.eval_stmt(stmt) {
+                Some(Object::ReturnValue(value)) => return Some(Object::ReturnValue(value)),
+                Some(Object::Error(msg)) => return Some(Object::Error(msg)),
                 obj => result = obj,
             }
         }
@@ -244,5 +266,25 @@ mod tests {
         }
     }
 
-    // todo fn
+    #[test]
+    fn test_return_stmt() {
+        let tests = vec![
+            ("return 10;", Some(Object::Int(10))),
+            ("return 2 * 5; 9;", Some(Object::Int(10))),
+            (
+                r#"
+if (10 > 1) {
+  if (10 > 1) {
+    return 10;
+  }
+  return 1;
+}"#,
+                Some(Object::Int(10)),
+            ),
+        ];
+
+        for (input, expect) in tests {
+            assert_eq!(expect, eval(input));
+        }
+    }
 }
