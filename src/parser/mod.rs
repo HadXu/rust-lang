@@ -138,6 +138,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_expr(&mut self, precedence: Precedence) -> Option<Expr> {
+        // prefix
         let mut left = match self.current_token {
             Token::IDENT(_) => self.parse_ident_expr(),
             Token::INT(_) => self.parse_int_expr(),
@@ -149,6 +150,7 @@ impl<'a> Parser<'a> {
             _ => panic!("do not support {:?} token", self.current_token),
         };
 
+        // infix
         while !self.next_token_is(&Token::SEMICOLON) && precedence < self.next_token_precedence() {
             match self.next_token {
                 Token::PLUS
@@ -161,6 +163,10 @@ impl<'a> Parser<'a> {
                 | Token::GT => {
                     self.next_token();
                     left = self.parse_infix_expr(left.unwrap());
+                }
+                Token::LPAREN => {
+                    self.next_token();
+                    left = self.parse_call_expr(left.unwrap());
                 }
                 _ => return left,
             }
@@ -337,6 +343,47 @@ impl<'a> Parser<'a> {
             panic!("except {:?} but found {:?}", Token::RPAREN, self.next_token);
         }
         Some(params)
+    }
+
+    fn parse_call_expr(&mut self, func: Expr) -> Option<Expr> {
+        let args = match self.parse_expr_list(Token::RPAREN) {
+            Some(args) => args,
+            None => return None,
+        };
+        Some(Expr::Call {
+            func: Box::new(func),
+            args,
+        })
+    }
+
+    fn parse_expr_list(&mut self, end: Token) -> Option<Vec<Expr>> {
+        let mut list = vec![];
+        if self.next_token_is(&end) {
+            self.next_token();
+            return Some(list);
+        }
+
+        self.next_token();
+        match self.parse_expr(Precedence::LOWEST) {
+            Some(expr) => list.push(expr),
+            None => return None,
+        }
+
+        while self.next_token_is(&Token::COMMA) {
+            self.next_token();
+            self.next_token();
+
+            match self.parse_expr(Precedence::LOWEST) {
+                Some(expr) => list.push(expr),
+                None => return None,
+            }
+        }
+
+        if !self.expect_next_token(end) {
+            return None;
+        }
+
+        Some(list)
     }
 }
 
@@ -617,6 +664,34 @@ return 993322;
     }
 
     #[test]
+    fn test_call_expr() {
+        let input = "add(1, 2 * 3, 4 + 5);";
+
+        let mut parser = Parser::new(Lexer::new(input));
+        let program = parser.parse();
+
+        assert_eq!(
+            vec![Stmt::Expr(Expr::Call {
+                func: Box::new(Expr::Ident(Ident(String::from("add")))),
+                args: vec![
+                    Expr::Literal(Literal::Int(1)),
+                    Expr::Infix(
+                        Infix::MULTIPLY,
+                        Box::new(Expr::Literal(Literal::Int(2))),
+                        Box::new(Expr::Literal(Literal::Int(3))),
+                    ),
+                    Expr::Infix(
+                        Infix::PLUS,
+                        Box::new(Expr::Literal(Literal::Int(4))),
+                        Box::new(Expr::Literal(Literal::Int(5))),
+                    ),
+                ],
+            })],
+            program,
+        );
+    }
+
+    #[test]
     fn test_operator_precedence_parsing() {
         let tests = vec![
             (
@@ -874,4 +949,6 @@ return 993322;
             assert_eq!(vec![expect], program);
         }
     }
+
+    
 }
