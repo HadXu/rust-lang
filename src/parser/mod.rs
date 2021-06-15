@@ -1,6 +1,6 @@
-use crate::ast::*;
 use crate::lexer::Lexer;
 use crate::token::Token;
+use crate::{ast::*, lexer};
 
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
@@ -145,6 +145,7 @@ impl<'a> Parser<'a> {
             Token::LPAREN => self.parse_grouped_expr(),
             Token::BOOL(_) => self.parse_bool_expr(),
             Token::IF => self.parse_if_expr(),
+            Token::FUNCTION => self.parse_func_expr(),
             _ => panic!("do not support {:?} token", self.current_token),
         };
 
@@ -289,6 +290,53 @@ impl<'a> Parser<'a> {
             self.next_token();
         }
         block
+    }
+
+    fn parse_func_expr(&mut self) -> Option<Expr> {
+        if !self.expect_next_token(Token::LPAREN) {
+            panic!("except {:?} but found {:?}", Token::LPAREN, self.next_token);
+        }
+
+        let params = match self.parse_func_params() {
+            Some(params) => params,
+            None => return None,
+        };
+
+        if !self.expect_next_token(Token::LBRACE) {
+            panic!("except {:?} but found {:?}", Token::LBRACE, self.next_token);
+        }
+
+        Some(Expr::Func {
+            params,
+            body: self.parse_block_stmt(),
+        })
+    }
+
+    fn parse_func_params(&mut self) -> Option<Vec<Ident>> {
+        let mut params = vec![];
+        if self.next_token_is(&Token::RPAREN) {
+            self.next_token();
+            return Some(params);
+        }
+
+        self.next_token();
+        match self.parse_ident() {
+            Some(ident) => params.push(ident),
+            None => return None,
+        }
+
+        while self.next_token_is(&Token::COMMA) {
+            self.next_token();
+            self.next_token();
+            match self.parse_ident() {
+                Some(ident) => params.push(ident),
+                None => return None,
+            }
+        }
+        if !self.expect_next_token(Token::RPAREN) {
+            panic!("except {:?} but found {:?}", Token::RPAREN, self.next_token);
+        }
+        Some(params)
     }
 }
 
@@ -517,6 +565,55 @@ return 993322;
             })],
             program,
         );
+    }
+
+    #[test]
+    fn test_func_expr() {
+        let input = "fn(x, y) { x + y; }";
+
+        let mut parser = Parser::new(Lexer::new(input));
+        let program = parser.parse();
+
+        assert_eq!(
+            vec![Stmt::Expr(Expr::Func {
+                params: vec![Ident(String::from("x")), Ident(String::from("y"))],
+                body: vec![Stmt::Expr(Expr::Infix(
+                    Infix::PLUS,
+                    Box::new(Expr::Ident(Ident(String::from("x")))),
+                    Box::new(Expr::Ident(Ident(String::from("y")))),
+                ))],
+            })],
+            program,
+        );
+    }
+
+    #[test]
+    fn test_func_params() {
+        let tests = vec![
+            ("fn() {};", vec![]),
+            ("fn(x) {};", vec![Ident(String::from("x"))]),
+            (
+                "fn(x, y, z) {};",
+                vec![
+                    Ident(String::from("x")),
+                    Ident(String::from("y")),
+                    Ident(String::from("z")),
+                ],
+            ),
+        ];
+
+        for (input, expect) in tests {
+            let mut parser = Parser::new(Lexer::new(input));
+            let program = parser.parse();
+
+            assert_eq!(
+                vec![Stmt::Expr(Expr::Func {
+                    params: expect,
+                    body: vec![],
+                })],
+                program,
+            );
+        }
     }
 
     #[test]
