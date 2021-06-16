@@ -1,12 +1,18 @@
 pub mod object;
+pub mod env;
 use crate::ast::*;
 use crate::evaluator::object::*;
+use crate::evaluator::env::*;
+use std::cell::RefCell;
+use std::rc::Rc;
 
-pub struct Evaluator;
+pub struct Evaluator {
+    env: Rc<RefCell<Env>>,
+}
 
 impl Evaluator {
-    pub fn new() -> Self {
-        Evaluator {}
+    pub fn new(env: Rc<RefCell<Env>>) -> Self {
+        Evaluator {env}
     }
 
     fn is_error(obj: &Object) -> bool {
@@ -37,6 +43,19 @@ impl Evaluator {
 
     fn eval_stmt(&mut self, stmt: Stmt) -> Option<Object> {
         match stmt {
+            Stmt::Let(ident, expr) => {
+                let value = match self.eval_expr(expr) {
+                    Some(value) => value,
+                    None => return None,
+                };
+                if Self::is_error(&value) {
+                    Some(value)
+                } else {
+                    let Ident(name) = ident;
+                    self.env.borrow_mut().set(name, &value);
+                    None
+                }
+            },
             Stmt::Expr(expr) => self.eval_expr(expr),
             Stmt::Return(expr) => {
                 let value = match self.eval_expr(expr) {
@@ -55,6 +74,7 @@ impl Evaluator {
 
     fn eval_expr(&mut self, expr: Expr) -> Option<Object> {
         match expr {
+            Expr::Ident(ident) => Some(self.eval_ident(ident)),
             Expr::Literal(literal) => Some(self.eval_literal(literal)),
             Expr::Prefix(prefix, right_expr) => {
                 let right = self.eval_expr(*right_expr);
@@ -79,7 +99,16 @@ impl Evaluator {
                 consequence,
                 alternative,
             } => self.eval_if_expr(*cond, consequence, alternative),
+            Expr::Func { params, body} => Some(Object::Func(params, body, Rc::clone(&self.env))),
             _ => panic!("not support op {:?}", expr),
+        }
+    }
+
+    fn eval_ident(&mut self, ident: Ident) -> Object {
+        let Ident(name) = ident;
+        match self.env.borrow_mut().get(name.clone()) {
+            Some(value) => value,
+            None => Object::Error(String::from(format!("identifier not found: {}", name))),
         }
     }
 
@@ -177,13 +206,18 @@ impl Evaluator {
 
 #[cfg(test)]
 mod tests {
+    use crate::ast::*;
     use crate::evaluator::object::*;
     use crate::evaluator::Evaluator;
     use crate::lexer::Lexer;
     use crate::parser::Parser;
+    use crate::evaluator::env::*;
+
+    use std::cell::RefCell;
+    use std::rc::Rc;
 
     fn eval(input: &str) -> Option<Object> {
-        Evaluator::new().eval(Parser::new(Lexer::new(input)).parse())
+        Evaluator::new(Rc::new(RefCell::new(Env::new()))).eval(Parser::new(Lexer::new(input)).parse())
     }
 
     #[test]
@@ -287,4 +321,41 @@ if (10 > 1) {
             assert_eq!(expect, eval(input));
         }
     }
+
+    #[test]
+    fn test_let_stmt() {
+        let tests = vec![
+            ("let a = 5; a;", Some(Object::Int(5))),
+            ("let a = 5 * 5; a;", Some(Object::Int(25))),
+            ("let a = 5; let b = a; b;", Some(Object::Int(5))),
+            (
+                "let a = 5; let b = a; let c = a + b + 5; c;",
+                Some(Object::Int(15)),
+            ),
+        ];
+
+        for (input, expect) in tests {
+            assert_eq!(expect, eval(input));
+        }
+    }
+
+    #[test]
+    fn test_fn_object() {
+        let input = "fn(x) { x + 2; };";
+
+        assert_eq!(
+            Some(Object::Func(
+                vec![Ident(String::from("x"))],
+                vec![Stmt::Expr(Expr::Infix(
+                    Infix::PLUS,
+                    Box::new(Expr::Ident(Ident(String::from("x")))),
+                    Box::new(Expr::Literal(Literal::Int(2))),
+                ))],
+                Rc::new(RefCell::new(Env::new())),
+            )),
+            eval(input),
+        );
+    }
+
+    
 }
