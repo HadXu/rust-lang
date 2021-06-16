@@ -19,7 +19,7 @@ pub enum Expr {
     Call {
         func: Box<Expr>,
         args: Vec<Expr>,
-    }
+    },
 }
 
 #[derive(PartialEq, Clone, Debug)]

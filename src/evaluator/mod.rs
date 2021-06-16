@@ -1,8 +1,8 @@
-pub mod object;
 pub mod env;
+pub mod object;
 use crate::ast::*;
-use crate::evaluator::object::*;
 use crate::evaluator::env::*;
+use crate::evaluator::object::*;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -12,7 +12,7 @@ pub struct Evaluator {
 
 impl Evaluator {
     pub fn new(env: Rc<RefCell<Env>>) -> Self {
-        Evaluator {env}
+        Evaluator { env }
     }
 
     fn is_error(obj: &Object) -> bool {
@@ -55,7 +55,7 @@ impl Evaluator {
                     self.env.borrow_mut().set(name, &value);
                     None
                 }
-            },
+            }
             Stmt::Expr(expr) => self.eval_expr(expr),
             Stmt::Return(expr) => {
                 let value = match self.eval_expr(expr) {
@@ -99,7 +99,8 @@ impl Evaluator {
                 consequence,
                 alternative,
             } => self.eval_if_expr(*cond, consequence, alternative),
-            Expr::Func { params, body} => Some(Object::Func(params, body, Rc::clone(&self.env))),
+            Expr::Func { params, body } => Some(Object::Func(params, body, Rc::clone(&self.env))),
+            Expr::Call { func, args } => Some(self.eval_call_expr(func, args)),
             _ => panic!("not support op {:?}", expr),
         }
     }
@@ -202,22 +203,35 @@ impl Evaluator {
             None
         }
     }
+
+    fn eval_call_expr(&mut self, func: Box<Expr>, args: Vec<Expr>) -> Object {
+        let args = args
+            .iter()
+            .map(|e| self.eval_expr(e.clone()).unwrap_or(Object::NULL))
+            .collect::<Vec<_>>();
+        
+        let (params, body, env) = match self.eval_expr(*func) {
+            Some(Object::Func(params, body, env)) => (params, body, env),
+            _ => panic!("error"),
+        };
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::ast::*;
+    use crate::evaluator::env::*;
     use crate::evaluator::object::*;
     use crate::evaluator::Evaluator;
     use crate::lexer::Lexer;
     use crate::parser::Parser;
-    use crate::evaluator::env::*;
 
     use std::cell::RefCell;
     use std::rc::Rc;
 
     fn eval(input: &str) -> Option<Object> {
-        Evaluator::new(Rc::new(RefCell::new(Env::new()))).eval(Parser::new(Lexer::new(input)).parse())
+        Evaluator::new(Rc::new(RefCell::new(Env::new())))
+            .eval(Parser::new(Lexer::new(input)).parse())
     }
 
     #[test]
@@ -357,5 +371,38 @@ if (10 > 1) {
         );
     }
 
-    
+    #[test]
+    fn test_fn_application() {
+        let tests = vec![
+            (
+                "let identity = fn(x) { x; }; identity(5);",
+                Some(Object::Int(5)),
+            ),
+            (
+                "let identity = fn(x) { return x; }; identity(5);",
+                Some(Object::Int(5)),
+            ),
+            (
+                "let double = fn(x) { x * 2; }; double(5);",
+                Some(Object::Int(10)),
+            ),
+            (
+                "let add = fn(x, y) { x + y; }; add(5, 5);",
+                Some(Object::Int(10)),
+            ),
+            (
+                "let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));",
+                Some(Object::Int(20)),
+            ),
+            ("fn(x) { x; }(5)", Some(Object::Int(5))),
+            (
+                "fn(a) { let f = fn(b) { a + b }; f(a); }(5);",
+                Some(Object::Int(10)),
+            ),
+        ];
+
+        for (input, expect) in tests {
+            assert_eq!(expect, eval(input));
+        }
+    }
 }

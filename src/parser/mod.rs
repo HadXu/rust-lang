@@ -949,6 +949,4 @@ return 993322;
             assert_eq!(vec![expect], program);
         }
     }
-
-    
 }

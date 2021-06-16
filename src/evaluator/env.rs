@@ -1,7 +1,7 @@
 use crate::evaluator::object::Object;
 use std::cell::RefCell;
-use std::rc::Rc;
 use std::collections::HashMap;
+use std::rc::Rc;
 
 #[derive(PartialEq, Clone, Debug)]
 pub struct Env {
