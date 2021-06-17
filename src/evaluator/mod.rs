@@ -214,6 +214,24 @@ impl Evaluator {
             Some(Object::Func(params, body, env)) => (params, body, env),
             _ => panic!("error"),
         };
+
+        if params.len() != args.len() {
+            panic!("wrong number of arguments: {} expected but {} given", params.len(), args.len())
+        }
+        let current_env = Rc::clone(&self.env);
+        let mut scoped_env = Env::new_with_outer(Rc::clone(&env));
+        let list = params.iter().zip(args.iter());
+        for (_, (ident, o)) in list.enumerate() {
+            let Ident(name) = ident.clone();
+            scoped_env.set(name, o);
+        }
+        self.env = Rc::new(RefCell::new(scoped_env));
+        let object = self.eval_block_stmt(body);
+        self.env = current_env;
+        match object {
+            Some(o) => o,
+            None => Object::NULL,
+        }
     }
 }
 
