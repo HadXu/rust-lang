@@ -6,6 +6,7 @@ use std::rc::Rc;
 #[derive(PartialEq, Clone, Debug)]
 pub enum Object {
     Int(i64),
+    String(String),
     Bool(bool),
     NULL,
     ReturnValue(Box<Object>),
@@ -17,6 +18,7 @@ impl fmt::Display for Object {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Object::Int(ref value) => write!(f, "{}", value),
+            Object::String(ref value) => write!(f, "{}", value),
             Object::Bool(ref flag) => write!(f, "{}", flag),
             Object::NULL => write!(f, "null"),
             Object::ReturnValue(ref value) => write!(f, "{}", value),

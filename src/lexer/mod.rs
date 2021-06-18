@@ -88,6 +88,7 @@ impl<'a> Lexer<'a> {
             b'}' => Token::RBRACE,
             b'a'..=b'z' | b'A'..=b'Z' | b'_' => return self.read_identifier(),
             b'0'..=b'9' => return self.read_number(),
+            b'"' => return self.read_string(),
             0 => Token::EOF,
             _ => Token::ILLEGAL,
         };
@@ -136,6 +137,21 @@ impl<'a> Lexer<'a> {
         let literal = &self.input[pos..self.pos];
         Token::INT(literal.parse::<i64>().unwrap())
     }
+
+    fn read_string(&mut self) -> Token {
+        self.read_char();
+        let start_pos = self.pos;
+        loop {
+            match self.ch {
+                b'"' | 0 => {
+                    let literal = &self.input[start_pos..self.pos];
+                    self.read_char();
+                    return Token::STRING(literal.to_string());
+                }
+                _ => self.read_char(),
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -162,6 +178,8 @@ mod tests {
         }
         10 == 10;
         10 != 9;
+        "foobar";
+        "foo bar";
         "#;
         let tests = vec![
             Token::LET,
@@ -236,6 +254,10 @@ mod tests {
             Token::INT(10),
             Token::NOT_EQ,
             Token::INT(9),
+            Token::SEMICOLON,
+            Token::STRING(String::from("foobar")),
+            Token::SEMICOLON,
+            Token::STRING(String::from("foo bar")),
             Token::SEMICOLON,
             Token::EOF,
         ];

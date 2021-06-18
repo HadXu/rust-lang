@@ -141,12 +141,14 @@ impl<'a> Parser<'a> {
         // prefix
         let mut left = match self.current_token {
             Token::IDENT(_) => self.parse_ident_expr(),
+            Token::STRING(_) => self.parse_string_expr(),
             Token::INT(_) => self.parse_int_expr(),
             Token::BANG | Token::MINUS | Token::PLUS => self.parse_prefix_expr(),
             Token::LPAREN => self.parse_grouped_expr(),
             Token::BOOL(_) => self.parse_bool_expr(),
             Token::IF => self.parse_if_expr(),
             Token::FUNCTION => self.parse_func_expr(),
+
             _ => panic!("do not support {:?} token", self.current_token),
         };
 
@@ -194,6 +196,14 @@ impl<'a> Parser<'a> {
             _ => None,
         }
     }
+
+    fn parse_string_expr(&mut self) -> Option<Expr> {
+        match self.current_token {
+            Token::STRING(ref mut v) => Some(Expr::Literal(Literal::String(v.clone()))),
+            _ => None,
+        }
+    }
+
 
     fn parse_prefix_expr(&mut self) -> Option<Expr> {
         let prefix = match self.current_token {
@@ -460,6 +470,21 @@ return 993322;
         let program = parser.parse();
 
         assert_eq!(vec![Stmt::Expr(Expr::Literal(Literal::Int(5)))], program,);
+    }
+
+    #[test]
+    fn test_string_literal_expr() {
+        let input = "\"hello world\";";
+
+        let mut parser = Parser::new(Lexer::new(input));
+        let program = parser.parse();
+
+        assert_eq!(
+            vec![Stmt::Expr(Expr::Literal(Literal::String(String::from(
+                "hello world",
+            ))))],
+            program,
+        );
     }
 
     #[test]

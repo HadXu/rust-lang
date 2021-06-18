@@ -101,7 +101,6 @@ impl Evaluator {
             } => self.eval_if_expr(*cond, consequence, alternative),
             Expr::Func { params, body } => Some(Object::Func(params, body, Rc::clone(&self.env))),
             Expr::Call { func, args } => Some(self.eval_call_expr(func, args)),
-            _ => panic!("not support op {:?}", expr),
         }
     }
 
@@ -117,6 +116,7 @@ impl Evaluator {
         match literal {
             Literal::Int(value) => Object::Int(value),
             Literal::Bool(flag) => Object::Bool(flag),
+            Literal::String(value) => Object::String(value),
         }
     }
 
@@ -423,4 +423,28 @@ if (10 > 1) {
             assert_eq!(expect, eval(input));
         }
     }
+
+    #[test]
+    fn test_closures() {
+        let input = r#"
+let newAdder = fn(x) {
+  fn(y) { x + y };
+}
+let addTwo = newAdder(2);
+addTwo(2);
+        "#;
+
+        assert_eq!(Some(Object::Int(4)), eval(input));
+    }
+
+    #[test]
+    fn test_string_expr() {
+        let input = "\"Hello World!\"";
+
+        assert_eq!(
+            Some(Object::String(String::from("Hello World!"))),
+            eval(input)
+        );
+    }
+
 }
