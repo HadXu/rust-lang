@@ -26,6 +26,9 @@ pub enum Token {
     LBRACE,
     RBRACE,
 
+    LBRACKET,
+    RBRACKET,
+
     FUNCTION,
     LET,
     IF,

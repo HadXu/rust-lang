@@ -101,6 +101,15 @@ impl Evaluator {
             } => self.eval_if_expr(*cond, consequence, alternative),
             Expr::Func { params, body } => Some(Object::Func(params, body, Rc::clone(&self.env))),
             Expr::Call { func, args } => Some(self.eval_call_expr(func, args)),
+            Expr::Index(left_expr, index_expr) => {
+                let left = self.eval_expr(*left_expr);
+                let index = self.eval_expr(*index_expr);
+                if left.is_some() && index.is_some() {
+                    Some(self.eval_index_expr(left.unwrap(), index.unwrap()))
+                } else {
+                    None
+                }
+            }
         }
     }
 
@@ -117,6 +126,7 @@ impl Evaluator {
             Literal::Int(value) => Object::Int(value),
             Literal::Bool(flag) => Object::Bool(flag),
             Literal::String(value) => Object::String(value),
+            Literal::Array(objects) => self.eval_array_literal(objects),
         }
     }
 
@@ -254,6 +264,35 @@ impl Evaluator {
             Some(o) => o,
             None => Object::NULL,
         }
+    }
+
+    fn eval_index_expr(&mut self, left: Object, index: Object) -> Object {
+        match (left, index) {
+            (Object::Array(ref array), Object::Int(i)) => {
+                self.eval_array_index_expr(array.clone(), i)
+            }
+            (_, _) => panic!("not support"),
+        }
+    }
+
+    fn eval_array_index_expr(&mut self, array: Vec<Object>, index: i64) -> Object {
+        let max = array.len() as i64;
+        if index < 0 || index > max {
+            return Object::NULL;
+        }
+        match array.get(index as usize) {
+            Some(o) => o.clone(),
+            None => Object::NULL,
+        }
+    }
+
+    fn eval_array_literal(&mut self, objects: Vec<Expr>) -> Object {
+        Object::Array(
+            objects
+                .iter()
+                .map(|e| self.eval_expr(e.clone()).unwrap_or(Object::NULL))
+                .collect::<Vec<_>>(),
+        )
     }
 }
 
@@ -487,6 +526,31 @@ addTwo(2);
             ("len(\"\")", Some(Object::Int(0))),
             ("len(\"four\")", Some(Object::Int(4))),
             ("len(\"hello world\")", Some(Object::Int(11))),
+        ];
+
+        for (input, expect) in tests {
+            assert_eq!(expect, eval(input));
+        }
+    }
+
+    #[test]
+    fn test_array_index_expr() {
+        let tests = vec![
+            ("[1, 2, 3][0]", Some(Object::Int(1))),
+            ("[1, 2, 3][1]", Some(Object::Int(2))),
+            ("let i = 0; [1][i]", Some(Object::Int(1))),
+            ("[1, 2, 3][1 + 1];", Some(Object::Int(3))),
+            ("let myArray = [1, 2, 3]; myArray[2];", Some(Object::Int(3))),
+            (
+                "let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];",
+                Some(Object::Int(6)),
+            ),
+            (
+                "let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i];",
+                Some(Object::Int(2)),
+            ),
+            ("[1, 2, 3][3]", Some(Object::NULL)),
+            ("[1, 2, 3][-1]", Some(Object::NULL)),
         ];
 
         for (input, expect) in tests {

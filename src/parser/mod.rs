@@ -27,6 +27,7 @@ impl<'a> Parser<'a> {
             Token::PLUS | Token::MINUS => Precedence::SUM,
             Token::SLASH | Token::ASTERISK => Precedence::PRODUCT,
             Token::LPAREN => Precedence::CALL,
+            Token::LBRACKET => Precedence::Index,
             _ => Precedence::LOWEST,
         }
     }
@@ -148,6 +149,7 @@ impl<'a> Parser<'a> {
             Token::BOOL(_) => self.parse_bool_expr(),
             Token::IF => self.parse_if_expr(),
             Token::FUNCTION => self.parse_func_expr(),
+            Token::LBRACKET => self.parse_array_expr(),
 
             _ => panic!("do not support {:?} token", self.current_token),
         };
@@ -169,6 +171,10 @@ impl<'a> Parser<'a> {
                 Token::LPAREN => {
                     self.next_token();
                     left = self.parse_call_expr(left.unwrap());
+                }
+                Token::LBRACKET => {
+                    self.next_token();
+                    left = self.parse_index_expr(left.unwrap());
                 }
                 _ => return left,
             }
@@ -394,6 +400,26 @@ impl<'a> Parser<'a> {
 
         Some(list)
     }
+
+    fn parse_array_expr(&mut self) -> Option<Expr> {
+        match self.parse_expr_list(Token::RBRACKET) {
+            Some(list) => Some(Expr::Literal(Literal::Array(list))),
+            None => None,
+        }
+    }
+
+    fn parse_index_expr(&mut self, left: Expr) -> Option<Expr> {
+        self.next_token();
+        let index = match self.parse_expr(Precedence::LOWEST) {
+            Some(expr) => expr,
+            None => return None,
+        };
+        if !self.expect_next_token(Token::RBRACKET) {
+            return None;
+        }
+
+        Some(Expr::Index(Box::new(left), Box::new(index)))
+    } 
 }
 
 #[cfg(test)]
@@ -972,5 +998,50 @@ return 993322;
             let program = parser.parse();
             assert_eq!(vec![expect], program);
         }
+    }
+
+    #[test]
+    fn test_array_literal_expr() {
+        let input = "[1, 2 * 2, 3 + 3]";
+
+        let mut parser = Parser::new(Lexer::new(input));
+        let program = parser.parse();
+
+        assert_eq!(
+            vec![Stmt::Expr(Expr::Literal(Literal::Array(vec![
+                Expr::Literal(Literal::Int(1)),
+                Expr::Infix(
+                    Infix::MULTIPLY,
+                    Box::new(Expr::Literal(Literal::Int(2))),
+                    Box::new(Expr::Literal(Literal::Int(2))),
+                ),
+                Expr::Infix(
+                    Infix::PLUS,
+                    Box::new(Expr::Literal(Literal::Int(3))),
+                    Box::new(Expr::Literal(Literal::Int(3))),
+                ),
+            ])))],
+            program,
+        );
+    }
+
+    #[test]
+    fn test_index_expr() {
+        let input = "myArray[1 + 1]";
+
+        let mut parser = Parser::new(Lexer::new(input));
+        let program = parser.parse();
+
+        assert_eq!(
+            vec![Stmt::Expr(Expr::Index(
+                Box::new(Expr::Ident(Ident(String::from("myArray")))),
+                Box::new(Expr::Infix(
+                    Infix::PLUS,
+                    Box::new(Expr::Literal(Literal::Int(1))),
+                    Box::new(Expr::Literal(Literal::Int(1))),
+                )),
+            ))],
+            program
+        );
     }
 }
