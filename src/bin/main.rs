@@ -1,6 +1,7 @@
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
+use lang::evaluator::builtins::new_builtins;
 use lang::evaluator::env::Env;
 use lang::evaluator::Evaluator;
 use lang::lexer::Lexer;
@@ -10,7 +11,7 @@ use std::rc::Rc;
 
 fn main() {
     let mut rl = Editor::<()>::new();
-    let mut evaluator = Evaluator::new(Rc::new(RefCell::new(Env::new())));
+    let mut evaluator = Evaluator::new(Rc::new(RefCell::new(Env::from(new_builtins()))));
 
     println!("Hello! Toy language!");
     println!("Author: hadxu");

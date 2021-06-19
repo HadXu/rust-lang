@@ -204,7 +204,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-
     fn parse_prefix_expr(&mut self) -> Option<Expr> {
         let prefix = match self.current_token {
             Token::BANG => Prefix::NOT,

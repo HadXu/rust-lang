@@ -3,6 +3,8 @@ use crate::evaluator::env::*;
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
+
+pub type BuiltinFunc = fn(Vec<Object>) -> Object;
 #[derive(PartialEq, Clone, Debug)]
 pub enum Object {
     Int(i64),
@@ -12,6 +14,7 @@ pub enum Object {
     ReturnValue(Box<Object>),
     Error(String),
     Func(Vec<Ident>, BlockStmt, Rc<RefCell<Env>>),
+    Builtin(i32, BuiltinFunc),
 }
 
 impl fmt::Display for Object {
@@ -34,6 +37,7 @@ impl fmt::Display for Object {
                 }
                 write!(f, "fn({}) {{ ... }}", result)
             }
+            Object::Builtin(_, _) => write!(f, "[builtin function]"),
         }
     }
 }

@@ -1,3 +1,4 @@
+pub mod builtins;
 pub mod env;
 pub mod object;
 use crate::ast::*;
@@ -68,7 +69,6 @@ impl Evaluator {
                     Some(Object::ReturnValue(Box::new(value)))
                 }
             }
-            _ => panic!("not support {:?}", stmt),
         }
     }
 
@@ -125,6 +125,9 @@ impl Evaluator {
             (Object::Int(left_value), Object::Int(right_value)) => {
                 self.eval_infix_int_expr(infix, left_value, right_value)
             }
+            (Object::String(left), Object::String(right)) => {
+                self.eval_infix_string_expr(infix, left, right)
+            }
             (_, _) => panic!("not support"),
         }
     }
@@ -147,6 +150,13 @@ impl Evaluator {
             Infix::GREATERTHAN => Object::Bool(left > right),
             Infix::EQUAL => Object::Bool(left == right),
             Infix::NOTEQUAL => Object::Bool(left != right),
+        }
+    }
+
+    fn eval_infix_string_expr(&mut self, infix: Infix, left: String, right: String) -> Object {
+        match infix {
+            Infix::PLUS => Object::String(format!("{}{}", left, right)),
+            _ => panic!("not support {:?} for String", infix),
         }
     }
 
@@ -209,14 +219,26 @@ impl Evaluator {
             .iter()
             .map(|e| self.eval_expr(e.clone()).unwrap_or(Object::NULL))
             .collect::<Vec<_>>();
-        
+
         let (params, body, env) = match self.eval_expr(*func) {
             Some(Object::Func(params, body, env)) => (params, body, env),
-            _ => panic!("error"),
+            Some(Object::Builtin(expect_param_num, f)) => {
+                if expect_param_num < 0 || expect_param_num == args.len() as i32 {
+                    return f(args);
+                } else {
+                    panic!("wrong number of arguments");
+                }
+            }
+            Some(o) => panic!("{} is not valid function", o),
+            None => return Object::NULL,
         };
 
         if params.len() != args.len() {
-            panic!("wrong number of arguments: {} expected but {} given", params.len(), args.len())
+            panic!(
+                "wrong number of arguments: {} expected but {} given",
+                params.len(),
+                args.len()
+            )
         }
         let current_env = Rc::clone(&self.env);
         let mut scoped_env = Env::new_with_outer(Rc::clone(&env));
@@ -238,6 +260,7 @@ impl Evaluator {
 #[cfg(test)]
 mod tests {
     use crate::ast::*;
+    use crate::evaluator::builtins::new_builtins;
     use crate::evaluator::env::*;
     use crate::evaluator::object::*;
     use crate::evaluator::Evaluator;
@@ -248,7 +271,7 @@ mod tests {
     use std::rc::Rc;
 
     fn eval(input: &str) -> Option<Object> {
-        Evaluator::new(Rc::new(RefCell::new(Env::new())))
+        Evaluator::new(Rc::new(RefCell::new(Env::from(new_builtins()))))
             .eval(Parser::new(Lexer::new(input)).parse())
     }
 
@@ -383,7 +406,7 @@ if (10 > 1) {
                     Box::new(Expr::Ident(Ident(String::from("x")))),
                     Box::new(Expr::Literal(Literal::Int(2))),
                 ))],
-                Rc::new(RefCell::new(Env::new())),
+                Rc::new(RefCell::new(Env::from(new_builtins()))),
             )),
             eval(input),
         );
@@ -447,4 +470,27 @@ addTwo(2);
         );
     }
 
+    #[test]
+    fn test_string_concatenation() {
+        let input = "\"Hello\" + \" \" + \"World!\"";
+
+        assert_eq!(
+            Some(Object::String(String::from("Hello World!"))),
+            eval(input)
+        );
+    }
+
+    #[test]
+    fn test_builtin_functions() {
+        let tests = vec![
+            // len
+            ("len(\"\")", Some(Object::Int(0))),
+            ("len(\"four\")", Some(Object::Int(4))),
+            ("len(\"hello world\")", Some(Object::Int(11))),
+        ];
+
+        for (input, expect) in tests {
+            assert_eq!(expect, eval(input));
+        }
+    }
 }
