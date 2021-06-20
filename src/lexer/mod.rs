@@ -88,6 +88,7 @@ impl<'a> Lexer<'a> {
             b'}' => Token::RBRACE,
             b'[' => Token::LBRACKET,
             b']' => Token::RBRACKET,
+            b':' => Token::COLON,
             b'a'..=b'z' | b'A'..=b'Z' | b'_' => return self.read_identifier(),
             b'0'..=b'9' => return self.read_number(),
             b'"' => return self.read_string(),
@@ -183,6 +184,7 @@ mod tests {
         "foobar";
         "foo bar";
         [1, 2];
+        {"foo": "bar"};
         "#;
         let tests = vec![
             Token::LET,
@@ -267,6 +269,12 @@ mod tests {
             Token::COMMA,
             Token::INT(2),
             Token::RBRACKET,
+            Token::SEMICOLON,
+            Token::LBRACE,
+            Token::STRING(String::from("foo")),
+            Token::COLON,
+            Token::STRING(String::from("bar")),
+            Token::RBRACE,
             Token::SEMICOLON,
             Token::EOF,
         ];

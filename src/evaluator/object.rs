@@ -3,6 +3,8 @@ use crate::evaluator::env::*;
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
+use std::collections::HashMap;
+use std::hash::{Hash, Hasher};
 
 pub type BuiltinFunc = fn(Vec<Object>) -> Object;
 #[derive(PartialEq, Clone, Debug)]
@@ -16,6 +18,7 @@ pub enum Object {
     Func(Vec<Ident>, BlockStmt, Rc<RefCell<Env>>),
     Builtin(i32, BuiltinFunc),
     Array(Vec<Object>),
+    Hash(HashMap<Object, Object>),
 }
 
 impl fmt::Display for Object {
@@ -50,6 +53,31 @@ impl fmt::Display for Object {
                 write!(f, "fn({}) {{ ... }}", result)
             }
             Object::Builtin(_, _) => write!(f, "[builtin function]"),
+            Object::Hash(ref hash) => {
+                let mut result = String::new();
+                for (i, (k, v)) in hash.iter().enumerate() {
+                    if i < 1 {
+                        result.push_str(&format!("{}: {}", k, v));
+                    } else {
+                        result.push_str(&format!(", {}: {}", k, v));
+                    }
+                }
+                write!(f, "{{{}}}", result)
+            }
+        }
+    }
+}
+
+
+impl Eq for Object {}
+
+impl Hash for Object {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match *self {
+            Object::Int(ref i) => i.hash(state),
+            Object::Bool(ref b) => b.hash(state),
+            Object::String(ref s) => s.hash(state),
+            _ => "".hash(state),
         }
     }
 }

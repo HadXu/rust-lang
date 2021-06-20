@@ -6,6 +6,7 @@ use crate::evaluator::env::*;
 use crate::evaluator::object::*;
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::collections::HashMap;
 
 pub struct Evaluator {
     env: Rc<RefCell<Env>>,
@@ -127,6 +128,7 @@ impl Evaluator {
             Literal::Bool(flag) => Object::Bool(flag),
             Literal::String(value) => Object::String(value),
             Literal::Array(objects) => self.eval_array_literal(objects),
+            Literal::Hash(pairs) => self.eval_hash_literal(pairs),
         }
     }
 
@@ -267,13 +269,22 @@ impl Evaluator {
     }
 
     fn eval_index_expr(&mut self, left: Object, index: Object) -> Object {
-        match (left, index) {
-            (Object::Array(ref array), Object::Int(i)) => {
+        match left {
+            Object::Array(ref array) => if let Object::Int(i) = index {
                 self.eval_array_index_expr(array.clone(), i)
-            }
-            (_, _) => panic!("not support"),
+            } else {
+                panic!("uknown operator: {} {}", left, index)
+            },
+            Object::Hash(ref hash) => match index {
+                Object::Int(_) | Object::Bool(_) | Object::String(_) => match hash.get(&index) {
+                    Some(o) => o.clone(),
+                    None => Object::NULL,
+                },
+                _ => panic!("uknown operator: {} {}", left, index),
+            },
+            _ => panic!("uknown operator: {} {}", left, index),
         }
-    }
+        }
 
     fn eval_array_index_expr(&mut self, array: Vec<Object>, index: i64) -> Object {
         let max = array.len() as i64;
@@ -294,6 +305,16 @@ impl Evaluator {
                 .collect::<Vec<_>>(),
         )
     }
+
+    fn eval_hash_literal(&mut self, pairs: Vec<(Expr, Expr)>) -> Object {
+        let mut hash = HashMap::new();
+        for (key_expr, value_expr) in pairs {
+            let key = self.eval_expr(key_expr).unwrap_or(Object::NULL);
+            let value = self.eval_expr(value_expr).unwrap_or(Object::NULL);
+            hash.insert(key, value);
+        }
+        Object::Hash(hash)
+    }
 }
 
 #[cfg(test)]
@@ -305,6 +326,7 @@ mod tests {
     use crate::evaluator::Evaluator;
     use crate::lexer::Lexer;
     use crate::parser::Parser;
+    use std::collections::HashMap;
 
     use std::cell::RefCell;
     use std::rc::Rc;
@@ -551,6 +573,47 @@ addTwo(2);
             ),
             ("[1, 2, 3][3]", Some(Object::NULL)),
             ("[1, 2, 3][-1]", Some(Object::NULL)),
+        ];
+
+        for (input, expect) in tests {
+            assert_eq!(expect, eval(input));
+        }
+    }
+    #[test]
+    fn test_hash_literal() {
+        let input = r#"
+let two = "two";
+{
+  "one": 10 - 9,
+  two: 1 + 1,
+  "thr" + "ee": 6 / 2,
+  4: 4,
+  true: 5,
+  false: 6
+}
+"#;
+
+        let mut hash = HashMap::new();
+        hash.insert(Object::String(String::from("one")), Object::Int(1));
+        hash.insert(Object::String(String::from("two")), Object::Int(2));
+        hash.insert(Object::String(String::from("three")), Object::Int(3));
+        hash.insert(Object::Int(4), Object::Int(4));
+        hash.insert(Object::Bool(true), Object::Int(5));
+        hash.insert(Object::Bool(false), Object::Int(6));
+
+        assert_eq!(Some(Object::Hash(hash)), eval(input),);
+    }
+
+    #[test]
+    fn test_hash_index_expr() {
+        let tests = vec![
+            ("{\"foo\": 5}[\"foo\"]", Some(Object::Int(5))),
+            ("{\"foo\": 5}[\"bar\"]", Some(Object::NULL)),
+            ("let key = \"foo\"; {\"foo\": 5}[key]", Some(Object::Int(5))),
+            ("{}[\"foo\"]", Some(Object::NULL)),
+            ("{5: 5}[5]", Some(Object::Int(5))),
+            ("{true: 5}[true]", Some(Object::Int(5))),
+            ("{false: 5}[false]", Some(Object::Int(5))),
         ];
 
         for (input, expect) in tests {

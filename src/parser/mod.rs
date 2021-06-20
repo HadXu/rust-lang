@@ -150,7 +150,7 @@ impl<'a> Parser<'a> {
             Token::IF => self.parse_if_expr(),
             Token::FUNCTION => self.parse_func_expr(),
             Token::LBRACKET => self.parse_array_expr(),
-
+            Token::LBRACE => self.parse_hash_expr(),
             _ => panic!("do not support {:?} token", self.current_token),
         };
 
@@ -420,6 +420,35 @@ impl<'a> Parser<'a> {
 
         Some(Expr::Index(Box::new(left), Box::new(index)))
     } 
+
+    fn parse_hash_expr(&mut self) -> Option<Expr> {
+        let mut pairs = Vec::new();
+        while !self.next_token_is(&Token::RBRACE) {
+            self.next_token();
+            let key = match self.parse_expr(Precedence::LOWEST) {
+                Some(expr) => expr,
+                None => return None,
+            };
+            if !self.expect_next_token(Token::COLON) {
+                return None;
+            }
+            self.next_token();
+
+            let value = match self.parse_expr(Precedence::LOWEST) {
+                Some(expr) => expr,
+                None => return None,
+            };
+            pairs.push((key, value));
+            if !self.next_token_is(&Token::RBRACE) && !self.expect_next_token(Token::COMMA) {
+                return None;
+            }
+        }
+        if !self.expect_next_token(Token::RBRACE) {
+            return None;
+        }
+
+        Some(Expr::Literal(Literal::Hash(pairs)))
+    }
 }
 
 #[cfg(test)]
@@ -1043,5 +1072,72 @@ return 993322;
             ))],
             program
         );
+    }
+
+    #[test]
+    fn test_hash_literal_expr() {
+        let tests = vec![
+            ("{}", Stmt::Expr(Expr::Literal(Literal::Hash(vec![])))),
+            (
+                "{\"one\": 1, \"two\": 2, \"three\": 3}",
+                Stmt::Expr(Expr::Literal(Literal::Hash(vec![
+                    (
+                        Expr::Literal(Literal::String(String::from("one"))),
+                        Expr::Literal(Literal::Int(1)),
+                    ),
+                    (
+                        Expr::Literal(Literal::String(String::from("two"))),
+                        Expr::Literal(Literal::Int(2)),
+                    ),
+                    (
+                        Expr::Literal(Literal::String(String::from("three"))),
+                        Expr::Literal(Literal::Int(3)),
+                    ),
+                ]))),
+            ),
+            (
+                "{\"one\": 0 + 1, \"two\": 10 - 8, \"three\": 15 / 5}",
+                Stmt::Expr(Expr::Literal(Literal::Hash(vec![
+                    (
+                        Expr::Literal(Literal::String(String::from("one"))),
+                        Expr::Infix(
+                            Infix::PLUS,
+                            Box::new(Expr::Literal(Literal::Int(0))),
+                            Box::new(Expr::Literal(Literal::Int(1))),
+                        ),
+                    ),
+                    (
+                        Expr::Literal(Literal::String(String::from("two"))),
+                        Expr::Infix(
+                            Infix::MINUS,
+                            Box::new(Expr::Literal(Literal::Int(10))),
+                            Box::new(Expr::Literal(Literal::Int(8))),
+                        ),
+                    ),
+                    (
+                        Expr::Literal(Literal::String(String::from("three"))),
+                        Expr::Infix(
+                            Infix::DIVIDE,
+                            Box::new(Expr::Literal(Literal::Int(15))),
+                            Box::new(Expr::Literal(Literal::Int(5))),
+                        ),
+                    ),
+                ]))),
+            ),
+            (
+                "{key: \"value\"}",
+                Stmt::Expr(Expr::Literal(Literal::Hash(vec![(
+                    Expr::Ident(Ident(String::from("key"))),
+                    Expr::Literal(Literal::String(String::from("value"))),
+                )]))),
+            ),
+        ];
+
+        for (input, expect) in tests {
+            let mut parser = Parser::new(Lexer::new(input));
+            let program = parser.parse();
+
+            assert_eq!(vec![expect], program);
+        }
     }
 }
