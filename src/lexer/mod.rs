@@ -82,8 +82,22 @@ impl<'a> Lexer<'a> {
             }
             b'/' => Token::SLASH,
             b'*' => Token::ASTERISK,
-            b'<' => Token::LT,
-            b'>' => Token::GT,
+            b'<' => {
+                if self.nextch_is(b'=') {
+                    self.read_char();
+                    Token::LTE
+                }else {
+                    Token::LT
+                }
+            }
+            b'>' => {
+                if self.nextch_is(b'=') {
+                    self.read_char();
+                    Token::GTE
+                }else {
+                    Token::GT
+                }
+            }
             b'{' => Token::LBRACE,
             b'}' => Token::RBRACE,
             b'[' => Token::LBRACKET,
@@ -185,6 +199,7 @@ mod tests {
         "foo bar";
         [1, 2];
         {"foo": "bar"};
+        3 <= 5;
         "#;
         let tests = vec![
             Token::LET,
@@ -275,6 +290,10 @@ mod tests {
             Token::COLON,
             Token::STRING(String::from("bar")),
             Token::RBRACE,
+            Token::SEMICOLON,
+            Token::INT(3),
+            Token::LTE,
+            Token::INT(5),
             Token::SEMICOLON,
             Token::EOF,
         ];

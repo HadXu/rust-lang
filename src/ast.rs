@@ -47,7 +47,7 @@ pub type Program = BlockStmt;
 pub enum Precedence {
     LOWEST,
     EQUALS,      // ==
-    LESSGREATER, // > or <
+    LESSGREATER, // >, <, >=, <=
     SUM,         // +
     PRODUCT,     // *
     PREFIX,      // -X or !X

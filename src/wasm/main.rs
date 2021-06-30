@@ -13,6 +13,10 @@ use std::rc::Rc;
 fn main() {
 }
 
+fn hello() {
+    internal_print("hello");
+}
+
 extern "C" {
     fn print(input_ptr: *mut c_char);
 }

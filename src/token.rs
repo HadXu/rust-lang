@@ -17,6 +17,8 @@ pub enum Token {
 
     LT,
     GT,
+    LTE,
+    GTE,
 
     COMMA,
     SEMICOLON,
