@@ -22,7 +22,7 @@ impl<'a> Parser<'a> {
 
     fn token_to_precedence(tok: &Token) -> Precedence {
         match tok {
-            Token::EQ | Token::NOT_EQ => Precedence::EQUALS,
+            Token::EQ | Token::NOT_EQ | Token::GTE | Token::LTE => Precedence::EQUALS,
             Token::LT | Token::GT => Precedence::LESSGREATER,
             Token::PLUS | Token::MINUS => Precedence::SUM,
             Token::SLASH | Token::ASTERISK => Precedence::PRODUCT,
@@ -164,6 +164,8 @@ impl<'a> Parser<'a> {
                 | Token::EQ
                 | Token::NOT_EQ
                 | Token::LT
+                | Token::GTE
+                | Token::LTE
                 | Token::GT => {
                     self.next_token();
                     left = self.parse_infix_expr(left.unwrap());
@@ -235,6 +237,8 @@ impl<'a> Parser<'a> {
             Token::NOT_EQ => Infix::NOTEQUAL,
             Token::LT => Infix::LESSTHAN,
             Token::GT => Infix::GREATERTHAN,
+            Token::GTE => Infix::GREATEQUALTHAN,
+            Token::LTE => Infix::LESSEQUALTHAN,
             _ => panic!("do not support {:?}", self.current_token),
         };
 
@@ -605,6 +609,22 @@ return 993322;
                 Stmt::Expr(Expr::Infix(
                     Infix::NOTEQUAL,
                     Box::new(Expr::Literal(Literal::Int(5))),
+                    Box::new(Expr::Literal(Literal::Int(5))),
+                )),
+            ),
+            (
+                "5 <= 6;",
+                Stmt::Expr(Expr::Infix(
+                    Infix::LESSEQUALTHAN,
+                    Box::new(Expr::Literal(Literal::Int(5))),
+                    Box::new(Expr::Literal(Literal::Int(6))),
+                )),
+            ),
+            (
+                "6 >= 5;",
+                Stmt::Expr(Expr::Infix(
+                    Infix::GREATEQUALTHAN,
+                    Box::new(Expr::Literal(Literal::Int(6))),
                     Box::new(Expr::Literal(Literal::Int(5))),
                 )),
             ),

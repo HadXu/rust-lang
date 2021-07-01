@@ -72,4 +72,6 @@ pub enum Infix {
     NOTEQUAL,
     GREATERTHAN,
     LESSTHAN,
+    GREATEQUALTHAN,
+    LESSEQUALTHAN,
 }

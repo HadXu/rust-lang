@@ -162,6 +162,8 @@ impl Evaluator {
             Infix::GREATERTHAN => Object::Bool(left > right),
             Infix::EQUAL => Object::Bool(left == right),
             Infix::NOTEQUAL => Object::Bool(left != right),
+            Infix::GREATEQUALTHAN => Object::Bool(left >= right),
+            Infix::LESSEQUALTHAN => Object::Bool(left <= right),
         }
     }
 
@@ -392,6 +394,8 @@ mod tests {
             ("1 != 1", Some(Object::Bool(false))),
             ("1 == 2", Some(Object::Bool(false))),
             ("1 != 2", Some(Object::Bool(true))),
+            ("1 <= 2", Some(Object::Bool(true))),
+            ("2 >= 2", Some(Object::Bool(true))),
         ];
 
         for (input, expect) in tests {
