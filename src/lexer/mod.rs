@@ -135,6 +135,7 @@ impl<'a> Lexer<'a> {
             "else" => Token::ELSE,
             "return" => Token::RETURN,
             "for" => Token::FOR,
+            "while" => Token::WHILE,
             _ => Token::IDENT(String::from(literal)),
         }
     }

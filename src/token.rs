@@ -43,4 +43,5 @@ pub enum Token {
     NOT_EQ,
 
     FOR,
+    WHILE,
 }
